@@ -1,9 +1,11 @@
 package managers.impl;
 
 import aggregators.DefaultMatchesAggregator;
+import aggregators.MatchesAggregator;
 import aggregators.Result;
 import aggregators.ResultData;
 import lombok.AllArgsConstructor;
+import managers.LineReference;
 import managers.NameSearchManager;
 import matchers.AhoCorasickMatcher;
 import matchers.Match;
@@ -22,6 +24,8 @@ public class NameSearchManagerImpl implements NameSearchManager {
 
     private final URI dictionaryUrl;
     private final URI fileToParseUrl;
+
+    private final MatchesAggregator matchesAggregator = new DefaultMatchesAggregator();
 
     @Override
     public void execute() {
@@ -42,12 +46,18 @@ public class NameSearchManagerImpl implements NameSearchManager {
              // we would need to use a regular thread pool, and we would need to be a bit more concerned in how we would handle the cores
              ExecutorService executorService = Executors.newVirtualThreadPerTaskExecutor()
         ) {
-            List<String> chunk = new ArrayList<>(chunkLines);
+            List<LineReference> chunk = new ArrayList<>(chunkLines);
             String line;
+            int lineOffset = 0;
+            int globalCharOffset = 0;
+
             while ((line = bufferedReader.readLine()) != null) {
-                chunk.add(line);
+                globalCharOffset += line.length() + 1; // +1 for the newline character
+                lineOffset++;
+
+                chunk.add(new LineReference(lineOffset, line, globalCharOffset));
                 if (chunk.size() >= chunkLines) {
-                    List<String> toProcess = List.copyOf(chunk);
+                    List<LineReference> toProcess = List.copyOf(chunk);
                     futures.add(executorService.submit(() -> processChunk(toProcess, ahoCorasickMatcher)));
                     chunk.clear();
                 }
@@ -57,40 +67,36 @@ public class NameSearchManagerImpl implements NameSearchManager {
             }
 
             executorService.shutdown();
-            executorService.awaitTermination(1, TimeUnit.MINUTES);
-
-            List<List<Result>> rawResults = new ArrayList<>(futures.size());
-
-            for (Future<List<Result>> future : futures) {
-                rawResults.add(future.get());
+            if (!executorService.awaitTermination(5, TimeUnit.MINUTES)) {
+                throw new RuntimeException("Executor timed out before completing tasks");
             }
 
-            Set<Result> aggregated = new DefaultMatchesAggregator().aggregate(rawResults);
+            List<List<Result>> rawResults = futures.stream()
+                    .map(Future::resultNow)
+                    .toList();
+
+
+            Set<Result> aggregated = matchesAggregator.aggregate(rawResults);
 
             // Print
             aggregated.forEach(System.out::println);
 
-        } catch (ExecutionException | IOException | InterruptedException e) {
+        } catch (IOException | InterruptedException e) {
             throw new RuntimeException(e);
         }
 
     }
 
-    private List<Result> processChunk(List<String> lines, AhoCorasickMatcher aho) {
-        String text = String.join("\n", lines);
-        // Run the AC search that returns Match records including word and startIndex
-        List<Match> matches = aho.search(text);
-
-        // Group matches by keyword, mapping each to ResultData and collecting into sets
-        Map<String, Set<ResultData>> grouped = matches.stream()
+    private List<Result> processChunk(List<LineReference> lines, AhoCorasickMatcher aho) {
+        return lines.stream()
+                .map(lineReference -> aho.search(lineReference.text(), lineReference.lineOffset(), lineReference.globalOffset()))
+                .flatMap(Collection::stream)
                 .collect(Collectors.groupingBy(
                         Match::word,
-                        Collectors.mapping(m -> new ResultData(m.startIndex(), m.endIndex()),
+                        Collectors.mapping(match -> new ResultData(match.startIndex(), match.lineOffset()),
                                 Collectors.toCollection(LinkedHashSet::new))
-                ));
-
-        // Build and return a Result for each name
-        return grouped.entrySet().stream()
+                ))
+                .entrySet().stream()
                 .map(row -> new Result(row.getKey(), row.getValue()))
                 .toList();
     }

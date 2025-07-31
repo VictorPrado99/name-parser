@@ -2,7 +2,7 @@ package matchers;
 
 public record Match(
         String word,
-        int startIndex, int endIndex
+        int startIndex, int endIndex, int lineOffset
 ) {
 
 }

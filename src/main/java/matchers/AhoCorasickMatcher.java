@@ -12,8 +12,7 @@ public class AhoCorasickMatcher {
     }
 
     private void buildTrie(Collection<String> words) {
-        for (String pat : words) {
-            String key = pat.toLowerCase();
+        for (String key : words) {
             Node node = root;
             for (char character : key.toCharArray()) {
                 node = node.getNext().computeIfAbsent(character, k -> new Node());
@@ -44,7 +43,7 @@ public class AhoCorasickMatcher {
         }
     }
 
-    public List<Match> search(String text) {
+    public List<Match> search(String text, int lineOffset, int globalCharOffset) {
         List<Match> matches = new ArrayList<>();
         Node node = root;
         for (int i = 0; i < text.length(); i++) {
@@ -58,7 +57,7 @@ public class AhoCorasickMatcher {
                     int start = i - pattern.length() + 1;
                     int end = i + 1;
                     if (isWholeWord(text, start, end)) {
-                        matches.add(new Match(pattern, start, end));
+                        matches.add(new Match(pattern, globalCharOffset+start, globalCharOffset+end, lineOffset));
                     }
                 }
             }
