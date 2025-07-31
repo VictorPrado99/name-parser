@@ -85,13 +85,13 @@ public class NameSearchManagerImpl implements NameSearchManager {
         Map<String, Set<ResultData>> grouped = matches.stream()
                 .collect(Collectors.groupingBy(
                         Match::word,
-                        Collectors.mapping(m -> new ResultData(m.startIndex(), m.startIndex()),  // use correct offset fields
+                        Collectors.mapping(m -> new ResultData(m.startIndex(), m.endIndex()),
                                 Collectors.toCollection(LinkedHashSet::new))
                 ));
 
         // Build and return a Result for each name
         return grouped.entrySet().stream()
-                .map(e -> new Result(e.getKey(), e.getValue()))
+                .map(row -> new Result(row.getKey(), row.getValue()))
                 .toList();
     }
 
