@@ -24,20 +24,12 @@ A high-performance Java application that searches for a predefined list of names
 
 Timothy --> [[lineOffset=13000, charOffset=19775], [lineOffset=13000, charOffset=42023]]
 
-yaml
-Copy
-Edit
-
 ---
 
 ## 🖥️ Sample Output
 
 Timothy --> [[lineOffset=13000, charOffset=19775], ...]
 John --> [[lineOffset=14900, charOffset=18433], ...]
-
-yaml
-Copy
-Edit
 
 ---
 
