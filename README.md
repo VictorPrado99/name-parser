@@ -35,26 +35,21 @@ John --> [[lineOffset=14900, charOffset=18433], ...]
 
 ## 🧪 Running the Project
 
-# run (with resources in classpath)
-java -cp out:resources NameParser
-Output is printed to stdout.
+Just run the Main.
+- You can change dictionary or the file to be read replacing in the `resources`
 
-🔧 Design Highlights
-Efficient & scalable—avoids loading full file in RAM
+## 🔧 Design Highlights
+- Efficient & scalable—avoids loading full file in RAM
 
-Chunked streaming—keeps memory bounded
+- Chunked streaming—keeps memory bounded
 
-Offset tracking—captures accurate lineOffset (line number) and charOffset (global position)
+- Offset tracking—captures accurate lineOffset (line number) and charOffset (global position)
 
-Aggregation—deduplicates and merges matches across chunks
+- Aggregation—deduplicates and merges matches across chunks
 
-Records usage—clean data modeling using Result and ResultData
+- Records usage—clean data modeling using Result and ResultData
 
-🎯 Further Enhancements
-Allow chunk size and parallelism tuning via command-line options
+## 🎯 Further Enhancements
+- Allow chunk size and parallelism tuning via command-line options
 
-Support multiple input files simultaneously
-
-Add context display (e.g. surrounding words) in output
-
-Provide output in CSV or JSON format
+- Support multiple input files simultaneously
