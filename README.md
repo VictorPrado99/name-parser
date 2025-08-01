@@ -6,9 +6,9 @@ A high-performance Java application that searches for a predefined list of names
 
 ## 🚀 Features
 
-- Implements **Aho–Corasick algorithm** for multi-pattern search in linear time :contentReference[oaicite:1]{index=1}
+- Implements **Aho–Corasick algorithm** for multi-pattern search in linear time
 - Processes **large text files chunk-by-chunk**, avoiding OutOfMemory risks
-- Uses **Java 21 Virtual Threads** to submit each chunk concurrently with minimal overhead :contentReference[oaicite:2]{index=2}
+- Uses **Java 21 Virtual Threads** to submit each chunk concurrently with minimal overhead
 - Thread-safe **aggregation of results** using clean, record-based data structures (`Result`, `ResultData`)
 
 ---
