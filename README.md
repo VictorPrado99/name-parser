@@ -1,113 +1,98 @@
 # NameMatcher
 
-A high-performance Java application to search for a predefined list of names within a large text file using the Aho-Corasick string matching algorithm and Java 21 Virtual Threads.
+A high-performance Java application that searches for a predefined list of names within a large text file using the **Aho–Corasick** string-matching algorithm. It’s optimized for Java 21+ through **Virtual Threads**, chunked file processing, and efficient result aggregation.
 
-## Overview
+---
 
-This project demonstrates an efficient multi-threaded name search pipeline that leverages:
+## 🚀 Features
 
-* **Aho-Corasick algorithm** for multi-pattern matching.
-* **Java 21 Virtual Threads** to process large files in parallel with minimal memory overhead.
-* **Chunked file reading** to avoid loading large files entirely into memory.
-
-The program outputs each found name along with its exact character offset and line offset in the text.
+- Implements **Aho–Corasick algorithm** for multi-pattern search in linear time :contentReference[oaicite:1]{index=1}
+- Processes **large text files chunk-by-chunk**, avoiding OutOfMemory risks
+- Uses **Java 21 Virtual Threads** to submit each chunk concurrently with minimal overhead :contentReference[oaicite:2]{index=2}
+- Thread-safe **aggregation of results** using clean, record-based data structures (`Result`, `ResultData`)
 
 ---
 
 ## 📂 Project Structure
 
-```
 src/
- ├── NameParser.java              # Entry point
- ├── managers/
- │   └── NameSearchManager.java
- │   └── impl/NameSearchManagerImpl.java
- ├── matchers/
- │   ├── AhoCorasickMatcher.java
- │   └── Match.java
- ├── aggregators/
- │   ├── MatchesAggregator.java
- │   ├── DefaultMatchesAggregator.java
- │   ├── Result.java
- │   └── ResultData.java
+├── NameParser.java # Main entry point
+├── managers/
+│ ├── NameSearchManager.java
+│ └── impl/NameSearchManagerImpl.java
+├── matchers/
+│ ├── AhoCorasickMatcher.java
+│ └── Match.java
+├── aggregators/
+│ ├── MatchesAggregator.java
+│ ├── DefaultMatchesAggregator.java
+│ ├── Result.java
+│ └── ResultData.java
+└── managers/LineReference.java
+
 resources/
- ├── dictionary.txt               # List of names to search (one per line)
- └── big.txt                      # Large text file to search through
-```
+├── dictionary.txt # One name per line
+└── big.txt # Large file to be scanned
+
+pgsql
+Copy
+Edit
 
 ---
 
-## ✅ How It Works
+## ⚙️ How It Works
 
-1. **Build the Trie:**
-   The list of names is read from `dictionary.txt` and compiled into a case-insensitive Aho-Corasick Trie.
+1. **Load dictionary** from `dictionary.txt`, build a case-insensitive trie via Aho–Corasick
+2. **Read `big.txt` in chunks** (default 1000 lines)
+3. **Submit each chunk** to a *virtual thread* via Java 21’s `newVirtualThreadPerTaskExecutor()`
+4. **Each chunk yields matches** (word, global char offset, line number) using the customized matcher
+5. **Aggregate all chunk results** with `MatchesAggregator`, merging match data sets per name
+6. **Print final results**, e.g.:
 
-2. **Chunked File Reading:**
-   The large file (`big.txt`) is read in chunks of 1000 lines at a time.
+Timothy --> [[lineOffset=13000, charOffset=19775], [lineOffset=13000, charOffset=42023]]
 
-3. **Parallel Matching with Virtual Threads:**
-   Each chunk is submitted to a virtual thread that uses the compiled matcher to find all name occurrences.
-
-4. **Result Aggregation:**
-   Results from each chunk are collected, deduplicated, and aggregated using `MatchesAggregator`.
-
-5. **Output:**
-   Each matched name is printed in the format:
-
-   ```
-   ```
-
-Name --> \[\[lineOffset=..., charOffset=...], ...]
-
-```
+yaml
+Copy
+Edit
 
 ---
 
-## 🧪 Example Output
-```
+## 🖥️ Sample Output
 
-James --> \[\[lineOffset=1200, charOffset=25480], \[lineOffset=3567, charOffset=75320]]
-John --> \[\[lineOffset=134, charOffset=1987], \[lineOffset=856, charOffset=15234]]
+Timothy --> [[lineOffset=13000, charOffset=19775], ...]
+John --> [[lineOffset=14900, charOffset=18433], ...]
 
-````
+yaml
+Copy
+Edit
 
 ---
 
-## 🚀 How to Run
+## 🧪 Running the Project
 
-1. Place your `dictionary.txt` and `big.txt` in the `resources/` directory.
-
-2. Compile and run using Java 21:
-```bash
+# compile
 javac -d out $(find src -name "*.java")
+
+# run (with resources in classpath)
 java -cp out:resources NameParser
-````
+Output is printed to stdout.
 
-3. Output will be printed to `stdout`.
+🔧 Design Highlights
+Efficient & scalable—avoids loading full file in RAM
 
----
+Chunked streaming—keeps memory bounded
 
-## 💡 Notes on Design
+Offset tracking—captures accurate lineOffset (line number) and charOffset (global position)
 
-* Uses **Virtual Threads** (Java 21) to process many chunks concurrently with very low memory overhead.
-* Designed to **avoid OutOfMemoryErrors** by never loading the entire file into memory.
-* Custom **Aho-Corasick** implementation avoids dependency bloat.
-* Output is sorted by match and location.
+Aggregation—deduplicates and merges matches across chunks
 
----
+Records usage—clean data modeling using Result and ResultData
 
-## 🛠 Technologies Used
+🎯 Further Enhancements
+Allow chunk size and parallelism tuning via command-line options
 
-* Java 21
-* Aho-Corasick pattern matching
-* Virtual Threads (Project Loom)
-* Stream API, Futures, ExecutorService
+Support multiple input files simultaneously
 
----
+Add context display (e.g. surrounding words) in output
 
-## 📘 References
-
-* [Aho-Corasick Algorithm](https://en.wikipedia.org/wiki/Aho%E2%80%93Corasick_algorithm)
-* [Virtual Threads in Java 21](https://openjdk.org/jeps/444)
-
-
+Provide output in CSV or JSON format
