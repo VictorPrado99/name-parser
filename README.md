@@ -13,33 +13,6 @@ A high-performance Java application that searches for a predefined list of names
 
 ---
 
-## 📂 Project Structure
-
-src/
-├── NameParser.java # Main entry point
-├── managers/
-│ ├── NameSearchManager.java
-│ └── impl/NameSearchManagerImpl.java
-├── matchers/
-│ ├── AhoCorasickMatcher.java
-│ └── Match.java
-├── aggregators/
-│ ├── MatchesAggregator.java
-│ ├── DefaultMatchesAggregator.java
-│ ├── Result.java
-│ └── ResultData.java
-└── managers/LineReference.java
-
-resources/
-├── dictionary.txt # One name per line
-└── big.txt # Large file to be scanned
-
-pgsql
-Copy
-Edit
-
----
-
 ## ⚙️ How It Works
 
 1. **Load dictionary** from `dictionary.txt`, build a case-insensitive trie via Aho–Corasick
