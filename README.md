@@ -1,4 +1,4 @@
-# NameMatcher
+# Name Parser
 
 A high-performance Java application that searches for a predefined list of names within a large text file using the **Aho–Corasick** string-matching algorithm. It’s optimized for Java 21+ through **Virtual Threads**, chunked file processing, and efficient result aggregation.
 
