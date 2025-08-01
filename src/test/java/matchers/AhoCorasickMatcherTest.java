@@ -1,62 +1,104 @@
 package matchers;
 
 import org.junit.jupiter.api.Test;
-import java.util.*;
+
+import java.util.List;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 class AhoCorasickMatcherTest {
 
     @Test
-    void testSingleMatch() {
-        AhoCorasickMatcher ac = new AhoCorasickMatcher(List.of("apple"));
-        List<Match> matches = ac.search("I ate an apple.");
+    void testSingleMatchCorrectOffsets() {
+        AhoCorasickMatcher matcher = new AhoCorasickMatcher(Set.of("Alice"));
+        String line = "Alice is present.";
+        int globalOffset = 100;
+        int lineOffset = 5;
+
+        List<Match> matches = matcher.search(line, lineOffset, globalOffset);
+
         assertEquals(1, matches.size());
         Match match = matches.get(0);
-        assertEquals("apple", match.word());
-        assertEquals(9, match.startIndex());
-        assertEquals(14, match.endIndex());
+        assertEquals("Alice", match.word());
+        assertEquals(100, match.startIndex()); // 0 + 100
+        assertEquals(105, match.endIndex());   // 5 + 100
+        assertEquals(5, match.lineOffset());
     }
 
     @Test
-    void testMultipleMatches() {
-        AhoCorasickMatcher ac = new AhoCorasickMatcher(List.of("cat", "dog"));
-        List<Match> matches = ac.search("A cat and a dog.");
+    void testMultipleMatchesDifferentWords() {
+        AhoCorasickMatcher matcher = new AhoCorasickMatcher(Set.of("Bob", "Alice"));
+        String line = "Bob and Alice are here";
+        int globalOffset = 50;
+        int lineOffset = 2;
+
+        List<Match> matches = matcher.search(line, lineOffset, globalOffset);
+
         assertEquals(2, matches.size());
-        assertTrue(matches.contains(new Match("cat", 2, 5)));
-        assertTrue(matches.contains(new Match("dog", 12, 15)));
+
+        Match bob = matches.stream().filter(m -> m.word().equals("Bob")).findFirst().orElseThrow();
+        Match alice = matches.stream().filter(m -> m.word().equals("Alice")).findFirst().orElseThrow();
+
+        assertEquals(50, bob.startIndex());
+        assertEquals(53, bob.endIndex());
+
+        assertEquals(58, alice.startIndex());
+        assertEquals(63, alice.endIndex());
+
+        assertEquals(2, bob.lineOffset());
+        assertEquals(2, alice.lineOffset());
     }
 
     @Test
-    void testNoMatch() {
-        AhoCorasickMatcher ac = new AhoCorasickMatcher(List.of("grape"));
-        List<Match> matches = ac.search("There is no fruit here.");
-        assertTrue(matches.isEmpty());
+    void testWordInMiddleNotWholeWord() {
+        AhoCorasickMatcher matcher = new AhoCorasickMatcher(Set.of("Bob"));
+        String line = "foobar";
+        int globalOffset = 0;
+        int lineOffset = 1;
+
+        List<Match> matches = matcher.search(line, lineOffset, globalOffset);
+        assertTrue(matches.isEmpty(), "Should not match part of another word");
     }
 
     @Test
-    void testWholeWordOnly() {
-        AhoCorasickMatcher ac = new AhoCorasickMatcher(List.of("he"));
-        List<Match> matches = ac.search("the hero ran");
-        // Should only match "he" as a word (not inside "the" or "hero")
-        assertTrue(matches.isEmpty());
-    }
+    void testMatchAtEndOfLine() {
+        AhoCorasickMatcher matcher = new AhoCorasickMatcher(Set.of("here"));
+        String line = "We are here";
+        int globalOffset = 20;
+        int lineOffset = 7;
 
-    @Test
-    void testOverlappingPatterns() {
-        AhoCorasickMatcher ac = new AhoCorasickMatcher(List.of("hers", "her", "he"));
-        List<Match> matches = ac.search("hers");
-        // Only match "hers" as a whole word
+        List<Match> matches = matcher.search(line, lineOffset, globalOffset);
         assertEquals(1, matches.size());
-        assertEquals("hers", matches.get(0).word());
+
+        Match m = matches.get(0);
+        assertEquals("here", m.word());
+        assertEquals(27, m.startIndex()); // "here" starts at 10 + 20
+        assertEquals(31, m.endIndex());
+        assertEquals(7, m.lineOffset());
     }
 
     @Test
-    void testMultipleOccurrencesOfSameWord() {
-        AhoCorasickMatcher ac = new AhoCorasickMatcher(List.of("test"));
-        List<Match> matches = ac.search("This is a test. Another test!");
-        assertEquals(2, matches.size());
-        assertEquals("test", matches.get(0).word());
-        assertEquals("test", matches.get(1).word());
+    void testMultipleMatchesSameWord() {
+        AhoCorasickMatcher matcher = new AhoCorasickMatcher(Set.of("Bob"));
+        String line = "Bob, Bob, and Bob.";
+        int globalOffset = 100;
+        int lineOffset = 4;
+
+        List<Match> matches = matcher.search(line, lineOffset, globalOffset);
+        assertEquals(3, matches.size());
+
+        for (Match match : matches) {
+            assertEquals("Bob", match.word());
+            assertEquals(4, match.lineOffset());
+        }
+
+        int[] expectedStarts = {100, 105, 114};
+        int[] expectedEnds = {103, 108, 117};
+
+        for (int i = 0; i < 3; i++) {
+            assertEquals(expectedStarts[i], matches.get(i).startIndex());
+            assertEquals(expectedEnds[i], matches.get(i).endIndex());
+        }
     }
 }
