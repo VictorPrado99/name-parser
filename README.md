@@ -22,15 +22,17 @@ A high-performance Java application that searches for a predefined list of names
 5. **Aggregate all chunk results** with `MatchesAggregator`, merging match data sets per name
 6. **Print final results**, e.g.:
 
+```
 Timothy --> [[lineOffset=13388, charOffset=1018975], [lineOffset=13752, charOffset=1041587]]
+```
 
 ---
 
 ## 🖥️ Sample Output
-
+```
 Timothy --> [[lineOffset=13000, charOffset=19775], ...]
 John --> [[lineOffset=14900, charOffset=18433], ...]
-
+```
 ---
 
 ## 🧪 Running the Project
