@@ -52,10 +52,8 @@ public class NameSearchManagerImpl implements NameSearchManager {
             int globalCharOffset = 0;
 
             while ((line = bufferedReader.readLine()) != null) {
+                chunk.add(new LineReference(++lineOffset, line, globalCharOffset));
                 globalCharOffset += line.length() + 1; // +1 for the newline character
-                lineOffset++;
-
-                chunk.add(new LineReference(lineOffset, line, globalCharOffset));
                 if (chunk.size() >= chunkLines) {
                     List<LineReference> toProcess = List.copyOf(chunk);
                     futures.add(executorService.submit(() -> processChunk(toProcess, ahoCorasickMatcher)));
@@ -93,7 +91,7 @@ public class NameSearchManagerImpl implements NameSearchManager {
                 .flatMap(Collection::stream)
                 .collect(Collectors.groupingBy(
                         Match::word,
-                        Collectors.mapping(match -> new ResultData(match.startIndex(), match.lineOffset()),
+                        Collectors.mapping(match -> new ResultData(match.lineOffset(), match.startIndex()),
                                 Collectors.toCollection(LinkedHashSet::new))
                 ))
                 .entrySet().stream()
