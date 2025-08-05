@@ -19,64 +19,74 @@ import java.util.*;
 import java.util.concurrent.*;
 import java.util.stream.Collectors;
 
-@AllArgsConstructor
+@AllArgsConstructor // Generates constructor with all fields as parameters (dictionaryUrl, fileToParseUrl)
 public class NameSearchManagerImpl implements NameSearchManager {
 
-    private final URI dictionaryUrl;
-    private final URI fileToParseUrl;
+    private final URI dictionaryUrl;    // URL to the dictionary file (list of names to search for)
+    private final URI fileToParseUrl;   // URL to the file where we will search names
 
-    private final MatchesAggregator matchesAggregator = new DefaultMatchesAggregator();
+    private final MatchesAggregator matchesAggregator = new DefaultMatchesAggregator(); // Aggregates results (e.g., de-duplicates)
 
     @Override
     public void execute() {
         List<String> names;
         try {
+            // Read all lines from dictionary file into a list of strings
             names = Files.readAllLines(Path.of(dictionaryUrl));
         } catch (IOException e) {
-            throw new RuntimeException(e);
+            throw new RuntimeException(e); // Wrap checked exception as unchecked
         }
 
+        // Build the Aho-Corasick matcher with all names
         AhoCorasickMatcher ahoCorasickMatcher = new AhoCorasickMatcher(names);
 
-        List<Future<List<Result>>> futures = new ArrayList<>();
+        List<Future<List<Result>>> futures = new ArrayList<>(); // Store futures for async chunk processing
 
-        int chunkLines = 1000;
+        int chunkLines = 1000; // Process file in chunks of 1000 lines
         try (BufferedReader bufferedReader = Files.newBufferedReader(Path.of(fileToParseUrl));
-             //If we weren't using Java21 to be able to leverage Virtual Threads,
-             // we would need to use a regular thread pool, and we would need to be a bit more concerned in how we would handle the cores
+             // Using Java 21 Virtual Threads to handle chunk tasks concurrently
              ExecutorService executorService = Executors.newVirtualThreadPerTaskExecutor()
         ) {
-            List<LineReference> chunk = new ArrayList<>(chunkLines);
+            List<LineReference> chunk = new ArrayList<>(chunkLines); // Holds current chunk of lines
             String line;
-            int lineOffset = 0;
-            int globalCharOffset = 0;
+            int lineOffset = 0;        // Tracks current line number
+            int globalCharOffset = 0;  // Tracks character offset from start of file
 
+            // Read file line by line
             while ((line = bufferedReader.readLine()) != null) {
+                // Wrap line in a LineReference object with its position info
                 chunk.add(new LineReference(++lineOffset, line, globalCharOffset));
-                globalCharOffset += line.length() + 1; // +1 for the newline character
+                globalCharOffset += line.length() + 1; // Account for newline char (+1)
+
+                // If chunk is full, process it asynchronously
                 if (chunk.size() >= chunkLines) {
-                    List<LineReference> toProcess = List.copyOf(chunk);
-                    futures.add(executorService.submit(() -> processChunk(toProcess, ahoCorasickMatcher)));
-                    chunk.clear();
+                    List<LineReference> toProcess = List.copyOf(chunk); // Immutable snapshot of chunk
+                    futures.add(executorService.submit(() -> processChunk(toProcess, ahoCorasickMatcher))); // Submit task
+                    chunk.clear(); // Clear chunk to collect next lines
                 }
             }
+
+            // Process remaining lines if any left (last partial chunk)
             if (!chunk.isEmpty()) {
                 futures.add(executorService.submit(() -> processChunk(chunk, ahoCorasickMatcher)));
             }
 
-            executorService.shutdown();
+            executorService.shutdown(); // Signal that no more tasks will be submitted
+
+            // Wait for all tasks to finish or timeout after 5 minutes
             if (!executorService.awaitTermination(5, TimeUnit.MINUTES)) {
                 throw new RuntimeException("Executor timed out before completing tasks");
             }
 
+            // Retrieve results from futures (non-blocking since tasks are done)
             List<List<Result>> rawResults = futures.stream()
                     .map(Future::resultNow)
                     .toList();
 
-
+            // Aggregate (e.g., de-duplicate) all partial results into a final result set
             Set<Result> aggregated = matchesAggregator.aggregate(rawResults);
 
-            // Print
+            // Output aggregated results
             aggregated.forEach(System.out::println);
 
         } catch (IOException | InterruptedException e) {
@@ -85,18 +95,21 @@ public class NameSearchManagerImpl implements NameSearchManager {
 
     }
 
+    // Processes a chunk of lines and returns all matches found in that chunk
     private List<Result> processChunk(List<LineReference> lines, AhoCorasickMatcher aho) {
         return lines.stream()
+                // For each line, perform Aho-Corasick search and get list of matches
                 .map(lineReference -> aho.search(lineReference.text(), lineReference.lineOffset(), lineReference.globalOffset()))
-                .flatMap(Collection::stream)
+                .flatMap(Collection::stream) // Flatten nested lists of matches
                 .collect(Collectors.groupingBy(
-                        Match::word,
-                        Collectors.mapping(match -> new ResultData(match.lineOffset(), match.startIndex()),
-                                Collectors.toCollection(LinkedHashSet::new))
+                        Match::word, // Group matches by the matched word
+                        Collectors.mapping(
+                                match -> new ResultData(match.lineOffset(), match.startIndex()), // Extract match position data
+                                Collectors.toCollection(LinkedHashSet::new)) // Use LinkedHashSet to avoid duplicates and preserve order
                 ))
-                .entrySet().stream()
+                .entrySet().stream() // Convert grouped map entries into Result objects
                 .map(row -> new Result(row.getKey(), row.getValue()))
-                .toList();
+                .toList(); // Collect results into a list
     }
 
 }
