@@ -14,13 +14,13 @@ public class AhoCorasickMatcher {
 
     // Build the Trie structure by inserting all the patterns
     private void buildTrie(Collection<String> words) {
-        for (String key : words) {                     // Iterate over all words to insert
+        for (String word : words) {                     // Iterate over all words to insert
             Node node = root;                          // Start from root for each word
-            for (char character : key.toCharArray()) { // For each character in the word
+            for (char character : word.toCharArray()) { // For each character in the word
                 // Move to existing child node or create a new one
-                node = node.getNext().computeIfAbsent(character, k -> new Node());
+                node = node.getNext().computeIfAbsent(character, c -> new Node());
             }
-            node.getOutputs().add(key);                // Mark end of word by storing pattern in outputs
+            node.getOutputs().add(word);                // Mark end of word by storing pattern in outputs
         }
     }
 
@@ -39,20 +39,20 @@ public class AhoCorasickMatcher {
             Node curr = deque.poll();                  // Dequeue current node to process
 
             // Iterate over all children of current node
-            for (Map.Entry<Character,Node> e : curr.getNext().entrySet()) {
-                char c = e.getKey();                   // Character of the edge
-                Node child = e.getValue();             // Child node reached by 'c'
+            for (Map.Entry<Character,Node> row : curr.getNext().entrySet()) {
+                char character = row.getKey();                   // Character of the edge
+                Node child = row.getValue();             // Child node reached by 'character'
                 Node possibleFailedNode = curr.getFail(); // Start fallback from current node's fail link
 
-                // Traverse fail links until we find a node with a transition for 'c' or hit root
-                while (possibleFailedNode != null && !possibleFailedNode.getNext().containsKey(c)) {
+                // Traverse fail links until we find a node with a transition for 'character' or hit root
+                while (possibleFailedNode != null && !possibleFailedNode.getNext().containsKey(character)) {
                     possibleFailedNode = possibleFailedNode.getFail(); // Follow fail link up the tree
                 }
 
                 // Set fail link of child:
-                // - If fallback node has 'c' transition, use that node.
+                // - If fallback node has 'character' transition, use that node.
                 // - Else, fallback to root.
-                child.setFail((possibleFailedNode != null) ? possibleFailedNode.getNext().get(c) : root);
+                child.setFail((possibleFailedNode != null) ? possibleFailedNode.getNext().get(character) : root);
 
                 // Merge output patterns from fail link into current child outputs
                 child.getOutputs().addAll(child.getFail().getOutputs());
